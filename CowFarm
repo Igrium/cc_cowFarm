@@ -3,8 +3,8 @@
 -- Place wireless modem on left side of turtle
 -- Constants
 requiredWheat = 48
---requiredFuel = 500
-requiredFuel = 20000
+requiredFuel = 500
+--requiredFuel = 20000
 waitTime = 6*60 -- Seconds between breed cycles
 
 -- Item to request for fuel
