@@ -1,0 +1,193 @@
+-- Place wireless modem on left side of turtle
+-- Constants
+requiredWheat = 48
+requiredFuel = 500
+waitTime = 6*60 -- Seconds between breed cycles
+
+-- How mant stacks of wheat to keep in local chest
+cachedWheat = 3
+
+fuelDirection = "right"
+wheatDirection = "up"
+
+rednet.open('left')
+os.loadAPI("farmStorage")
+
+--  Breeds the cows with Wheat
+function breed()
+	-- Wait for cows
+	os.sleep(1)
+	
+	-- Place wheat
+	for i=1,200,1 do
+		turtle.place()
+	end
+end
+
+
+-- Fires a 2 tick pulse of redstone on the left and right of the turtle
+function redstonePulse()
+	redstone.setOutput("left", true)
+	redstone.setOutput("right", true)
+	os.sleep(0.2)
+	redstone.setOutput("left", false)
+	redstone.setOutput("right", false)
+end
+
+-- Select the next slot
+function selectNext()
+	if turtle.getSelectedSlot() == 16 then
+		turtle.select(1)
+	else
+		turtle.select(turtle.getSelectedSlot()+1)
+	end
+end
+
+-- Go through all the stations and perform a breed cycle
+function breedCycle()
+	turtle.select(1)
+	print("Starting breed cycle")
+	
+	-- Check fuel
+	if turtle.getFuelLevel() < requiredFuel then
+		getFuel()
+	end
+	if turtle.getItemCount() < requiredWheat then
+		getWheat()
+	end
+
+	turtle.forward()
+	turtle.forward()
+	turtle.forward()
+	turtle.forward()
+	turtle.forward()
+	
+	turtle.turnRight()
+	turtle.forward()
+	redstonePulse()
+	breed()
+	redstonePulse()
+	turtle.back()
+	
+	turtle.back()
+	redstonePulse()
+	turtle.turnLeft()
+	turtle.turnLeft()
+	breed()
+	turtle.turnRight()
+	turtle.turnRight()
+	redstonePulse()
+	turtle.forward()
+	turtle.turnLeft()
+	
+	turtle.forward()
+	turtle.forward()
+	turtle.forward()
+	turtle.forward()
+	
+	turtle.turnLeft()
+	turtle.back()
+	redstonePulse()
+	turtle.turnLeft()
+	turtle.turnLeft()
+	breed()
+	turtle.turnLeft()
+	turtle.turnLeft()
+	redstonePulse()
+	
+	turtle.forward()
+	turtle.forward()
+	redstonePulse()
+	breed()
+	redstonePulse()
+	turtle.back()
+	turtle.turnRight()
+	
+	for i=1,9,1 do
+		turtle.back()
+	end
+end
+
+function getFuel(direction)
+	print("Refueling")
+	turtle.select(16)
+	local success = false
+	local alreadyComplained = false;
+	
+	while not success do
+		os.queueEvent("randomEvent")
+		os.pullEvent()
+		-- Move current item out of slot
+		turtle.select(1)
+		turtle.transferTo(16)
+		turtle.transferTo(15)
+		turtle.transferTo(14)
+		turtle.transferTo(13)
+		
+		-- Get the fuel
+		turtle.suckUp()
+		
+		
+		-- Attempt refuel
+		turtle.refuel()
+		success = turtle.getFuelLevel() >= requiredFuel
+		
+		-- Place item back in chest if bucket
+		turtle.dropUp()
+		
+		-- Complain if unsuccessfull 
+		if not success and not alreadyComplained then
+			print("Not enough fuel. Please place fuel in chest.")
+			alreadyComplained = true
+		end
+	end
+	
+	
+	turtle.select(1)
+	print("Fuel at "..string.format(turtle.getFuelLevel()).."/"..string.format(requiredFuel))
+	
+end
+
+function getWheat()
+	print("Obtaining wheat")
+	local success = false
+	local alreadyComplained = false
+	turtle.select(1)
+	local numWheat = turtle.getItemSpace()
+
+	
+	while not success do
+		os.queueEvent("randomEvent")
+		os.pullEvent()
+		-- Get the wheat
+		turtle.suckUp()
+		
+		-- See if I have enough
+		success = turtle.getItemCount() >= requiredWheat
+		
+		-- Complain if unsuccessfull 
+		if not success and not alreadyComplained then
+			print("Requesting wheat shipment...")
+			
+			-- Get wheat from storage system
+			local shipment = farmStorage.requestShipment({farmStorage.itemRequest({name='minecraft:wheat',damage=0}, cachedWheat)})
+			if not shipment then
+				print("Shipment failed. Please place "..requiredWheat-turtle.getItemCount().." wheat in the chest.")
+			end
+			alreadyComplained = true
+		end
+	end
+	
+	print("Wheat obtained")
+end
+
+-- Main loop
+function main()
+	while true do
+		breedCycle()
+		os.sleep(waitTime)
+	end
+end
+		
+
+main()
