@@ -111,7 +111,7 @@ end
 -- Make sure turtle has supplies
 function getSupplies()
 	-- Check if there's wheat or fuel in chest
-	for i=1,math.ceil(cachedFuel/64)+math.ceil(cachedWheat),1 do
+	for i=1,16,1 do
 		turtle.suckUp()
 	end
 	
