@@ -138,7 +138,7 @@ function getSupplies()
 		end
 	end
 	turtleUtils.dropItemUp(fuelItem)
-	turtleUtils.dropItemUp(fuelItem)
+	turtleUtils.dropItemUp(WHEAT, requiredWheat-10)
 	turtleUtils.collate()
 	
 end
