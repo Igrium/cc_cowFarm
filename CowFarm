@@ -1,17 +1,27 @@
+-- Program for cow farm turtle. REQUIRES farmStorage and turtleUtils v1.1.x
+
 -- Place wireless modem on left side of turtle
 -- Constants
 requiredWheat = 48
-requiredFuel = 500
+--requiredFuel = 500
+requiredFuel = 20000
 waitTime = 6*60 -- Seconds between breed cycles
 
--- How mant stacks of wheat to keep in local chest
+-- Item to request for fuel
+fuelItem = {name="minecraft:log",damage=1}
+
+-- How mant stacks of wheat/fuel to keep in local chest
 cachedWheat = 3
+cachedFuel = 2
 
 fuelDirection = "right"
 wheatDirection = "up"
 
+WHEAT = {name='minecraft:wheat',damage=0}
+
 rednet.open('left')
 os.loadAPI("farmStorage")
+os.loadAPI("turtleUtils")
 
 --  Breeds the cows with Wheat
 function breed()
@@ -34,27 +44,17 @@ function redstonePulse()
 	redstone.setOutput("right", false)
 end
 
--- Select the next slot
-function selectNext()
-	if turtle.getSelectedSlot() == 16 then
-		turtle.select(1)
-	else
-		turtle.select(turtle.getSelectedSlot()+1)
-	end
-end
-
 -- Go through all the stations and perform a breed cycle
 function breedCycle()
 	turtle.select(1)
 	print("Starting breed cycle")
 	
 	-- Check fuel
-	if turtle.getFuelLevel() < requiredFuel then
-		getFuel()
+	if turtle.getFuelLevel() < requiredFuel or turtleUtils.tally(WHEAT) < requiredWheat then
+		getSupplies()
 	end
-	if turtle.getItemCount() < requiredWheat then
-		getWheat()
-	end
+	
+	turtleUtils.selectItem(WHEAT)
 
 	turtle.forward()
 	turtle.forward()
@@ -108,77 +108,57 @@ function breedCycle()
 	end
 end
 
-function getFuel(direction)
-	print("Refueling")
-	turtle.select(16)
-	local success = false
-	local alreadyComplained = false;
-	
-	while not success do
-		os.queueEvent("randomEvent")
-		os.pullEvent()
-		-- Move current item out of slot
-		turtle.select(1)
-		turtle.transferTo(16)
-		turtle.transferTo(15)
-		turtle.transferTo(14)
-		turtle.transferTo(13)
-		
-		-- Get the fuel
+-- Make sure turtle has supplies
+function getSupplies()
+	-- Check if there's wheat or fuel in chest
+	for i=1,math.ceil(cachedFuel/64)+math.ceil(cachedWheat),1 do
 		turtle.suckUp()
-		
-		
-		-- Attempt refuel
-		turtle.refuel()
-		success = turtle.getFuelLevel() >= requiredFuel
-		
-		-- Place item back in chest if bucket
-		turtle.dropUp()
-		
-		-- Complain if unsuccessfull 
-		if not success and not alreadyComplained then
-			print("Not enough fuel. Please place fuel in chest.")
-			alreadyComplained = true
-		end
 	end
 	
+	turtleUtils.attemptRefuel()
 	
-	turtle.select(1)
-	print("Fuel at "..string.format(turtle.getFuelLevel()).."/"..string.format(requiredFuel))
+	local fuelSuccess = turtle.getFuelLevel() >= requiredFuel
+	local wheatSuccess = turtleUtils.tally(WHEAT) >= requiredWheat
+	
+	if fuelSuccess and wheatSuccess then return
+	-- Order supplies from storage system
+	else
+		print("Ordering supplies...")
+		orderSupplies(not fuelSuccess, not wheatSuccess)
+	end
+	
+	-- Wait for supplies
+	while (not fuelSuccess) or (not wheatSuccess) do
+		turtle.suckUp()
+		
+		wheatSuccess = turtleUtils.tally(WHEAT) >= requiredWheat
+		if (not fuelSuccess) and turtleUtils.tally(fuelItem) >= 16 then
+			turtleUtils.attemptRefuel()
+			fuelSuccess = turtle.getFuelLevel() >= requiredFuel
+		end
+	end
+	turtleUtils.dropItemUp(fuelItem)
+	turtleUtils.dropItemUp(fuelItem)
+	turtleUtils.collate()
 	
 end
 
-function getWheat()
-	print("Obtaining wheat")
-	local success = false
-	local alreadyComplained = false
-	turtle.select(1)
-	local numWheat = turtle.getItemSpace()
-
-	
-	while not success do
-		os.queueEvent("randomEvent")
-		os.pullEvent()
-		-- Get the wheat
-		turtle.suckUp()
-		
-		-- See if I have enough
-		success = turtle.getItemCount() >= requiredWheat
-		
-		-- Complain if unsuccessfull 
-		if not success and not alreadyComplained then
-			print("Requesting wheat shipment...")
-			
-			-- Get wheat from storage system
-			local shipment = farmStorage.requestShipment({farmStorage.itemRequest({name='minecraft:wheat',damage=0}, cachedWheat)})
-			if not shipment then
-				print("Shipment failed. Please place "..requiredWheat-turtle.getItemCount().." wheat in the chest.")
-			end
-			alreadyComplained = true
-		end
+-- Order supplies from the storage system
+-- @return Order successful
+function orderSupplies(needsFuel, needsWheat)
+	local shipment = nil
+	if needsFuel and needsWheat then
+		shipment = {{item=fuelItem, count=cachedFuel}, {item=WHEAT,count=cachedWheat}}
+	elseif needsFuel then
+		shipment = {{item=fuelItem, count=cachedFuel}}
+	elseif needsWheat then
+		shipment = {{item=WHEAT,count=cachedWheat}}
+	else
+		print("Shipment must contain wheat or fuel.")
+		return false
 	end
 	
-	print("Wheat obtained")
+	return farmStorage.requestShipment(shipment)
 end
 
 -- Main loop
