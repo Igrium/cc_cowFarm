@@ -1,9 +1,13 @@
--- Program for cow farm turtle. REQUIRES farmStorage and turtleUtils v1.1.x
+-- Program for cow farm turtle. REQUIRES farmStorage AND turtleUtils v1.1.x AND navUtils v1.0.x
 
 -- Place wireless modem on left side of turtle
 -- Constants
 requiredWheat = 48
 requiredFuel = 500
+
+homeCoordinates = vector.new(-423,60,1255)
+homeDirection = 'south'
+
 --requiredFuel = 20000
 waitTime = 6*60 -- Seconds between breed cycles
 
@@ -22,6 +26,7 @@ WHEAT = {name='minecraft:wheat',damage=0}
 rednet.open('left')
 os.loadAPI("farmStorage")
 os.loadAPI("turtleUtils")
+os.loadAPI("navUtils")
 
 --  Breeds the cows with Wheat
 function breed()
@@ -56,14 +61,14 @@ function breedCycle()
 	
 	turtleUtils.selectItem(WHEAT)
 
-	turtle.forward()
-	turtle.forward()
-	turtle.forward()
-	turtle.forward()
-	turtle.forward()
+	navUtils.forward()
+	navUtils.forward()
+	navUtils.forward()
+	navUtils.forward()
+	navUtils.forward()
 	
-	turtle.turnRight()
-	turtle.forward()
+	navUtils.turnRight()
+	navUtils.forward()
 	redstonePulse()
 	breed()
 	redstonePulse()
@@ -71,37 +76,37 @@ function breedCycle()
 	
 	turtle.back()
 	redstonePulse()
-	turtle.turnLeft()
-	turtle.turnLeft()
+	navUtils.turnLeft()
+	navUtils.turnLeft()
 	breed()
-	turtle.turnRight()
-	turtle.turnRight()
+	navUtils.turnRight()
+	navUtils.turnRight()
 	redstonePulse()
-	turtle.forward()
-	turtle.turnLeft()
+	navUtils.forward()
+	navUtils.turnLeft()
 	
-	turtle.forward()
-	turtle.forward()
-	turtle.forward()
-	turtle.forward()
+	navUtils.forward()
+	navUtils.forward()
+	navUtils.forward()
+	navUtils.forward()
 	
-	turtle.turnLeft()
+	navUtils.turnLeft()
 	turtle.back()
 	redstonePulse()
-	turtle.turnLeft()
-	turtle.turnLeft()
+	navUtils.turnLeft()
+	navUtils.turnLeft()
 	breed()
-	turtle.turnLeft()
-	turtle.turnLeft()
+	navUtils.turnLeft()
+	navUtils.turnLeft()
 	redstonePulse()
 	
-	turtle.forward()
-	turtle.forward()
+	navUtils.forward()
+	navUtils.forward()
 	redstonePulse()
 	breed()
 	redstonePulse()
 	turtle.back()
-	turtle.turnRight()
+	navUtils.turnRight()
 	
 	for i=1,9,1 do
 		turtle.back()
@@ -161,8 +166,23 @@ function orderSupplies(needsFuel, needsWheat)
 	return farmStorage.requestShipment(shipment)
 end
 
+-- Run on startup
+function setup()
+	navUtils.init()
+	
+	-- Go to home, avoiding farm structure
+	if homeDirection == 'north' or homeDirection == 'south' then
+		navUtils.goToX(homeCoordinates.x,false)
+		navUtils.goToZ(homeCoordinates.z,false)
+	else
+		navUtils.goToZ(homeCoordinates.z,false)
+		navUtils.goToX(homeCoordinates.x,false)
+	end
+	navUtils.faceDirection(homeDirection)
+end
 -- Main loop
 function main()
+	setup()
 	while true do
 		breedCycle()
 		os.sleep(waitTime)
